@@ -64,28 +64,36 @@ cheat.utility = {} do
         end
     end))
     cheat.utility.unload = function()
+    if connection then
         connection:Disconnect()
+        connection = nil
+    end
+    if connection1 then
         connection1:Disconnect()
-        for key, _ in pairs(cheat.connections.heartbeats) do
-            cheat.connections.heartbeats[key] = nil
-        end
-        for key, _ in pairs(cheat.connections.renderstepped) do
-            cheat.connections.heartbeats[key] = nil
-        end
-        for _, drawing in pairs(cheat.drawings) do
-            drawing:Remove()
-            cheat.drawings[_] = nil
-        end
-        for hooked, original in pairs(cheat.hooks) do
-            if type(original) == "function" then
-                hookfunction(hooked, clonefunction(original))
-            else
-                hookmetamethod(original["instance"], original["metamethod"], clonefunction(original["func"]))
-            end
+        connection1 = nil
+    end
+    
+    for key, _ in pairs(cheat.connections.heartbeats) do
+        cheat.connections.heartbeats[key] = nil
+    end
+    
+    for key, _ in pairs(cheat.connections.renderstepped) do
+        cheat.connections.renderstepped[key] = nil
+    end
+    
+    for _, drawing in pairs(cheat.drawings) do
+        drawing:Remove()
+        cheat.drawings[_] = nil
+    end
+    
+    for hooked, original in pairs(cheat.hooks) do
+        if type(original) == "function" then
+            hookfunction(hooked, clonefunction(original))
+        else
+            hookmetamethod(original["instance"], original["metamethod"], clonefunction(original["func"]))
         end
     end
 end
-
 
 local aftermath = {
     tickshift = 0,
