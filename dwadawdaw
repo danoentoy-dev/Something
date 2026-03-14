@@ -1,0 +1,1301 @@
+local cheat = {
+    Options = nil,
+    connections = {
+        heartbeats = {},
+        renderstepped = {}
+    },
+    drawings = {},
+    hooks = {}
+}
+cheat.utility = {} do
+    cheat.utility.new_heartbeat = function(func)
+        local obj = {}
+        cheat.connections.heartbeats[func] = func
+        function obj:Disconnect()
+            if func then
+                cheat.connections.heartbeats[func] = nil
+                func = nil
+            end
+        end
+        return obj
+    end
+    cheat.utility.new_renderstepped = function(func)
+        local obj = {}
+        cheat.connections.renderstepped[func] = func
+        function obj:Disconnect()
+            if func then
+                cheat.connections.renderstepped[func] = nil
+                func = nil
+            end
+        end
+        return obj
+    end
+    cheat.utility.new_drawing = function(drawobj, args)
+        local obj = Drawing.new(drawobj)
+        for i, v in pairs(args) do
+            obj[i] = v
+        end
+        cheat.drawings[obj] = obj
+        return obj
+    end
+    cheat.utility.new_hook = function(f, newf, usecclosure) LPH_NO_VIRTUALIZE(function()
+        if usecclosure then
+            local old; old = hookfunction(f, newcclosure(function(...)
+                return newf(old, ...)
+            end))
+            cheat.hooks[f] = old
+            return old
+        else
+            local old; old = hookfunction(f, function(...)
+                return newf(old, ...)
+            end)
+            cheat.hooks[f] = old
+            return old
+        end
+    end)() end
+    local connection; connection = RunService.Heartbeat:Connect(LPH_NO_VIRTUALIZE(function(delta)
+        for _, func in pairs(cheat.connections.heartbeats) do
+            func(delta)
+        end
+    end))
+    local connection1; connection1 = RunService.RenderStepped:Connect(LPH_NO_VIRTUALIZE(function(delta)
+        for _, func in pairs(cheat.connections.renderstepped) do
+            func(delta)
+        end
+    end))
+    cheat.utility.unload = function()
+        connection:Disconnect()
+        connection1:Disconnect()
+        for key, _ in pairs(cheat.connections.heartbeats) do
+            cheat.connections.heartbeats[key] = nil
+        end
+        for key, _ in pairs(cheat.connections.renderstepped) do
+            cheat.connections.heartbeats[key] = nil
+        end
+        for _, drawing in pairs(cheat.drawings) do
+            drawing:Remove()
+            cheat.drawings[_] = nil
+        end
+        for hooked, original in pairs(cheat.hooks) do
+            if type(original) == "function" then
+                hookfunction(hooked, clonefunction(original))
+            else
+                hookmetamethod(original["instance"], original["metamethod"], clonefunction(original["func"]))
+            end
+        end
+    end
+end
+
+
+local aftermath = {
+    tickshift = 0,
+    remotes = {
+        gunmelee = game:GetService("ReplicatedStorage").GunSystem.Event.GunEvent.GunMelee,
+        gunfire = game:GetService("ReplicatedStorage").GunSystem.Event.GunEvent.GunFire,
+        bullethole = game:GetService("ReplicatedStorage").GunSystem.Event.GunEvent.BulletHole
+    },
+    gundata = game:GetService("ReplicatedStorage").GunSystemAssets.GunData,
+    sv_config = game:GetService("ReplicatedStorage").CustomCharacterConfigs.Configuration.Server
+}
+local notification_queue = {}
+
+do
+    cheat.utility.new_renderstepped(function()
+        for i, v in notification_queue do
+            cheat.Library:Notify(v.text, v.duration)
+            notification_queue[i] = nil
+        end
+    end)
+end
+for _,  gc in getgc(true) do
+    if type(gc) == 'table' then
+        local gpfwc = rawget(gc,  'GetPlayerFromWorldCharacter')
+        if gpfwc and type(gpfwc) == 'function' then
+            local list = getupvalues(gpfwc)[1]
+            if list and type(list) == 'table' then
+                entitylist = list
+                break
+            end
+        end
+    end
+end
+do
+    local gottem = 0
+    repeat
+        gottem = 0
+        for _, gc in getgc(true) do
+            if type(gc) == "table" then
+            --    local gpfwc = rawget(gc, "GetPlayerFromWorldCharacter")
+--
+            --    if (gpfwc and type(gpfwc) == "function") then
+            --        local list = getupvalues(gpfwc)[1]
+            --        if not (list and type(list) == "table") then continue end
+            --        gottem += 1
+            --        aftermath.entitylist = list
+            --        continue
+            --    end
+--
+                local CIDMap = rawget(gc, "CIDMap")
+
+                if (CIDMap and type(CIDMap) == "table") then
+                    gottem += 1
+	    	    	aftermath.cidmap = CIDMap
+                    continue
+	    	    end
+
+                --[[local BulletSimulation = rawget(gc, "BulletSimulation")
+                if (BulletSimulation and type(BulletSimulation) == "function") then
+                    rawset(gc, "BulletSimulation", function(...)
+                        print(...)
+                        local ret = {BulletSimulation(...)}
+                        print(unpack(ret))
+                        return unpack(ret)
+                    end)
+                end]]
+            end
+            if type(gc) == "function" then
+                if islclosure(gc) and debug.getinfo(gc).short_src:find("CameraAngleSync") then
+                    gottem += 1
+                    aftermath.camsync = gc
+                end
+            end
+        end
+
+        if (game.GameId == 41210807) then
+
+	    	aftermath.cidmap = {}
+
+            local watchtower = game:GetService("ReplicatedFirst"):FindFirstChild("Watchtower")
+            local clientlog = watchtower and watchtower:FindFirstChild("ClientLog")
+            if clientlog then
+                clientlog:Destroy()
+                gottem += 1
+            end
+        end
+        task.wait(0.5)
+    until gottem == 1 or 1 or 3
+end
+
+
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/sametexe001/sametlibs/refs/heads/main/Serotonin/Library.lua"))()
+
+local Window = Library:Window({Name = "Millenium.cc", Logo = "90363697817722"})
+local Watermark = Library:Watermark("Dev Version")
+local KeybindList = Library:KeybindList()
+
+
+
+local CombatPage = Window:Page({Name = "Combat", Columns = 2})
+local VisualsPage = Window:Page({Name = "Visuals", Columns = 2})
+local MiscPage = Window:Page({Name = "Misc", Columns = 2})
+local SettingsPage = Library:CreateSettingsPage(Window, KeybindList, Watermark)
+
+local AimbotSection = CombatPage:Section({Name = "Silent Aim ", Side = 1})
+local FOV = CombatPage:Section({Name = "FOV Settings ", Side = 2})
+local GunMods = CombatPage:Section({Name = "Gun Mods", Side = 2})
+local VisualsSection = VisualsPage:Section({Name = "Visuals", Side = 1})
+local Movements = MiscPage:Section({Name = "Movements", Side = 2})
+local Chams = CombatPage:Section({Name = "Chams", Side = 1})
+
+local workspace = game:GetService("Workspace")
+local Self_Chams = false
+local Self_Chams_Color = Color3.fromRGB(148, 0, 211)  -- Default color
+
+local function SelfChams()
+    local EntitiesFolder = workspace.game_assets.Entities  -- Updated folder path
+    if EntitiesFolder then
+        for _, character in pairs(EntitiesFolder:GetChildren()) do
+            for _, part in pairs(character:GetChildren()) do
+                if part:IsA("BasePart") and table.find({
+                    "Head", "LeftFoot", "LeftHand", "LeftLowerArm", "LeftLowerLeg",
+                    "LeftUpperArm", "LeftUpperLeg", "LowerTorso", "RightFoot",
+                    "RightHand", "RightLowerArm", "RightLowerLeg", "RightUpperArm",
+                    "RightUpperLeg", "UpperTorso"
+                }, part.Name) then
+                    part.Material = Enum.Material.ForceField
+                    part.Color = Self_Chams_Color
+                end
+
+                if part:IsA("BasePart") then
+                    local clothingToRemove = {
+                        ["LeftFoot"]       = "Pants",
+                        ["LeftHand"]       = "Shirt",
+                        ["LeftLowerArm"]   = "Shirt",
+                        ["LeftLowerLeg"]   = "Pants",
+                        ["LeftUpperArm"]   = "Shirt",
+                        ["LeftUpperLeg"]   = "Pants",
+                        ["LowerTorso"]     = "Shirt",
+                        ["RightFoot"]      = "Pants",
+                        ["RightHand"]      = "Shirt",
+                        ["RightLowerArm"]  = "Shirt",
+                        ["RightLowerLeg"]  = "Pants",
+                        ["RightUpperArm"]  = "Shirt",
+                        ["RightUpperLeg"]  = "Pants",
+                        ["UpperTorso"]     = "Shirt", 
+                    }
+
+                    local clothingType = clothingToRemove[part.Name]
+                    if clothingType then
+                        local item = part:FindFirstChild(clothingType)
+                        if item then
+                            item:Destroy()
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+
+local selfchams = Chams:Toggle({
+    Name = "Self Chams",
+    Flag = "Self_Chams",
+    Default = false,
+    Callback = function(Value)
+        Self_Chams = Value
+        if Value then
+            SelfChams()
+        else
+            
+            
+        end
+    end
+})
+
+
+selfchams:Colorpicker({
+    Name = "Chams Color",
+    Flag = "Self_Chams_Color",
+    Default = Color3.fromRGB(148, 0, 211),
+    Callback = function(Value, Alpha)
+        Self_Chams_Color = Value
+        if Self_Chams then
+            SelfChams()
+        end
+    end
+})
+
+local color = Color3.fromRGB(148, 0, 211)
+local gunChamsEnabled = false
+
+function changeWeaponLook(gun)
+    if not gun then return end
+
+    local parts = gun:FindFirstChild("Weapon")
+    if not parts then return end
+
+    for _, v in pairs(parts:GetDescendants()) do
+        if v:IsA("BasePart") and v.Transparency < 1 then
+            v.Material = Enum.Material.ForceField
+            v.Color = color
+        end
+
+        if v:IsA("SurfaceAppearance") then
+            v:Destroy()
+        end
+    end
+end
+
+function setupWeaponChanger()
+    local cam = workspace.Camera
+    local currentGun = cam:FindFirstChild("CurrentWeapon")
+
+    if currentGun then
+        changeWeaponLook(currentGun)
+    end
+
+    workspace.Camera.ChildAdded:Connect(function(obj)
+        if obj.Name == "CurrentWeapon" then
+            wait(0.1)
+            changeWeaponLook(obj)
+        end
+    end)
+end
+
+local cham = Chams:Toggle({
+    Name = "Gun Chams",
+    Flag = "gun_chams",
+    Default = gunChamsEnabled,
+    Callback = function(Value)
+        gunChamsEnabled = Value
+        if Value then
+            setupWeaponChanger()
+        end
+    end
+})
+
+cham:Colorpicker({
+    Name = "Gun Chams Color",
+    Flag = "gun_chams_color",
+    Default = color,
+    Callback = function(Value, Alpha)
+        color = Value
+        if gunChamsEnabled then
+            local cam = workspace.Camera
+            local currentGun = cam:FindFirstChild("CurrentWeapon")
+            if currentGun then
+                changeWeaponLook(currentGun)
+            end
+        end
+    end
+})
+
+local aimbot_forceauto, aimbot_rapidfire, aimbot_instantbullet = false, false, false
+local aimbot_rapidfire_multiplier, aimbot_sussy = 1, false
+local aimbot_sussy_hmmm = false
+
+local aimbot_no_recoil = false
+local aimbot_no_spread = false
+
+GunMods:Toggle({
+    Name = "no spread",
+    Flag = "aimbot_no_spread",
+    Default = false,
+    Callback = function(first)
+        aimbot_no_spread = first
+    end
+})
+
+GunMods:Toggle({
+    Name = "No Recoil",
+    Flag = "aimbot_no_recoil",
+    Default = false,
+    Callback = function(Value)
+        aimbot_no_recoil = Value
+    end
+})
+
+for _, obj in getgc(true) do
+    if typeof(obj) == "table" and rawget(obj, "_positionVelocity") and type(rawget(obj, "_positionVelocity")) == "function" then
+        local original = clonefunction(rawget(obj, "_positionVelocity"))
+        rawset(obj, "_positionVelocity", function(self, now)
+            if aimbot_no_recoil then
+                return Vector3.zero, Vector3.zero
+            else
+                return original(self, now)
+            end
+        end)
+    end
+end
+
+local _CFramenew = CFrame.new
+local _Vector2new = Vector2.new
+local _Vector3new = Vector3.new
+local _IsDescendantOf = game.IsDescendantOf
+local _FindFirstChild = game.FindFirstChild
+local _FindFirstChildOfClass = game.FindFirstChildOfClass
+local _Raycast = workspace.Raycast
+local _IsKeyDown = UserInputService.IsKeyDown
+local _WorldToViewportPoint = Camera.WorldToViewportPoint
+local _Vector3zeromin = Vector3.zero.Min
+local _Vector2zeromin = Vector2.zero.Min
+local _Vector3zeromax = Vector3.zero.Max
+local _Vector2zeromax = Vector2.zero.Max
+local _IsA = game.IsA
+local tablecreate = table.create
+local mathfloor = math.floor
+local mathround = math.round
+local tostring = tostring
+local unpack = unpack
+local getupvalues = debug.getupvalues
+local getupvalue = debug.getupvalue
+local setupvalue = debug.setupvalue
+local getconstants = debug.getconstants
+local getconstant = debug.getconstant
+local setconstant = debug.setconstant
+local getstack = debug.getstack
+local setstack = debug.getstack
+local getinfo = debug.getinfo
+local rawget = rawget
+
+aftermath.packet_manipulation = {
+    known_indexes = {
+        ["gunfire"] = {
+            ["countbullet"] = 1,
+            ["time"] = 3,
+            ["origin"] = 5,
+            ["rpm1"] = 17,
+            ["rpm2"] = 18,
+            ["statchecksum"] = 22
+        },
+        ["gunhit"] = {
+            ["countbullet"] = 1,
+            --[""] = 
+            ["size"] = 12,
+            ["material"] = 13,
+            ["name"] = 14
+        },
+        ["gunmelee"] = {
+            ["name"] = 1,
+            --["something"] = 2,
+            ["pos"] = 3,
+            ["normal"] = 4, 
+            ["material"] = 5,
+            ["uuid"] = 6,
+            ["swingtime1"] = 7, 
+            ["posoffset"] = 8,
+            ["swingtime2"] = 9,
+            ["statchecksum"] = 10,
+            ["magnitude"] = 11
+        }
+    },
+    structs = {
+        ["gunfire"] = {
+            {"Int"},
+            {"String"},
+            {"Double"},
+            {"Short"},
+            {"Vector3"},
+            {"Short"},
+            {"Vector3"},
+            {"Double"},
+            {"Double"},
+            {"Vector3"},
+            {"Vector3"},
+            {"Double"},
+            {"Double"},
+            {"Short"},
+            {"Short"},
+            {"Int"},
+            {"Short"},
+            {"Short"},
+            {"Byte"},
+            {"Bool"},
+            {"Bool"},
+            {"Int"},
+            {"Bit"},
+            {"Short"},
+            {"Bit"},
+            {"Bit"},
+            {"Bit"},
+            {"Short"},
+            {"Byte"},
+            {"Byte"},
+            {"Short"},
+            {"Byte"}
+            -- "???"
+            -- repeat x times {Byte, Int} (x = lastelement)
+        },
+        ["gunhit"] = {
+            {"Int"},
+            {"Byte"},
+            {"Vector3"},
+            {"Vector3"},
+            {"Vector3"},
+            {"Vector3"},
+            {"Vector3"},
+            {"Vector3"},
+            {"Vector3"},
+            {"Vector3"},
+            {"Short"},
+            {"Vector3"},
+            {"String"},
+            {"String", 32},
+            {"Byte"},
+            {"String"}
+        },
+        ["gunmelee"] = {
+            {"String", 32},
+            {"Byte"},
+            {"Vector3"},
+            {"Vector3"},
+            {"String"},
+            {"String"},
+            {"Double"},
+            {"Vector3"},
+            {"Double"},
+            {"Int"},
+            {"Double"}
+        }
+    }
+}
+LPH_JIT_MAX(function()
+    aftermath.packet_manipulation.binutil = {
+        ["new"] = function(p1)
+            return {
+                ["Data"] = table.create(tonumber(p1) or 0),
+                ["CurrentBitIndex"] = 0,
+                ["CurrentIndex"] = 1
+            }
+        end,
+        ["WriteBit"] = function(_, p2, p3)
+            local v4 = p3 == true and true or p3 == 1
+            local v5 = p2.CurrentIndex
+            local v6 = tonumber(v5) or 1
+            local v7 = p2.CurrentBitIndex
+            local v8 = (tonumber(v7) or 0) + 1
+            local v9 = p2.Data or {}
+            local v10 = v9[v6]
+            local v11 = tonumber(v10) or 0
+            local v12 = bit32.lshift(v11, 1)
+            v9[v6] = bit32.bor(v12, v4 and 1 or 0)
+            if v8 < 8 then
+                p2.CurrentBitIndex = v8
+                return p2
+            end
+            p2.CurrentBitIndex = 0
+            p2.CurrentIndex = v6 + 1
+            return p2
+        end,
+        ["WriteBits"] = function(p13, p14, ...)
+            local v15 = { ... }
+            for v16 = 1, #v15 do
+                p13:WriteBit(p14, v15[v16])
+            end
+        end,
+        ["WriteByte"] = function(p17, p18, p19)
+            if not p18 or type(p18) ~= "table" then
+                error("Buffer must be of type table.")
+                return p18
+            end
+            local v20 = p18.CurrentIndex
+            if not v20 then
+                p18.CurrentIndex = 1
+                v20 = 1
+            end
+            local v21 = tonumber(p19) or 0
+            local v22 = math.floor(v21)
+            if v22 > 255 or v22 < 0 then
+                v22 = bit32.band(v22, 255)
+            end
+            local v23 = p18.CurrentBitIndex
+            if (tonumber(v23) or 0) ~= 0 then
+                for v24 = 0, 7 do
+                    local v25 = bit32.rshift(v22, v24)
+                    p17:WriteBit(p18, bit32.band(v25, 1) == 1)
+                end
+                return p18
+            end
+            p18.Data[v20] = v22
+            p18.CurrentIndex = p18.CurrentIndex + 1
+            return p18
+        end,
+        ["WriteBool"] = function(p26, p27, p28)
+            p26:WriteByte(p27, p28 == true and 1 or 0)
+            return p27
+        end,
+        ["WriteShort"] = function(p29, p30, p31)
+            local v32 = tonumber(p31) or 0
+            local v33 = math.floor(v32)
+            p29:WriteByte(p30, (bit32.rshift(v33, 8)))
+            p29:WriteByte(p30, (bit32.rshift(v33, 0)))
+            return p30
+        end,
+        ["WriteInt"] = function(p34, p35, p36)
+            local v37 = tonumber(p36) or 0
+            local v38 = math.floor(v37)
+            p34:WriteByte(p35, (bit32.rshift(v38, 24)))
+            p34:WriteByte(p35, (bit32.rshift(v38, 16)))
+            p34:WriteByte(p35, (bit32.rshift(v38, 8)))
+            p34:WriteByte(p35, (bit32.rshift(v38, 0)))
+            return p35
+        end,
+        ["WriteDouble"] = function(p39, p40, p41)
+            local v42 = tonumber(p41) or 0
+            local v43 = string.pack("d", v42)
+            for v44 = 1, #v43 do
+                p39:WriteByte(p40, (string.byte(v43, v44)))
+            end
+            return p40
+        end,
+        ["WriteString"] = function(p45, p46, p47, p48)
+            local v49 = (p47 == nil or typeof(p47) ~= "string") and "" or (tostring(p47) or "")
+            local v50
+            if p48 == nil or typeof(p48) ~= "number" then
+                v50 = nil
+            else
+                v50 = tonumber(p48) or nil
+            end
+            local v51 = string.len(v49)
+            for v52 = 1, math.min(v51, v50 or v51) do
+                local v53 = string.sub(v49, v52, v52)
+                local v54 = {}
+                for v55 = 1, 4 do
+                    local v56 = string.byte(v53, v55) or 0
+                    if v56 > 0 then
+                        v54[#v54 + 1] = v56
+                    end
+                end
+                p45:WriteByte(p46, #v54)
+                for v57 = 1, #v54 do
+                    p45:WriteByte(p46, v54[v57])
+                end
+            end
+            p45:WriteByte(p46, 0)
+            return p46
+        end,
+        ["WriteVector2"] = function(p58, p59, p60)
+            if p60 and typeof(p60) == "Vector3" then
+                p58:WriteDouble(p59, p60.X)
+                p58:WriteDouble(p59, p60.Y)
+                return p59
+            end
+            error("Vector must be of type Vector3")
+        end,
+        ["WriteVector3"] = function(p61, p62, p63)
+            if not p63 or typeof(p63) ~= "Vector3" then
+                error("Vector must be of type Vector3")
+                return p62
+            end
+            p61:WriteDouble(p62, p63.X)
+            p61:WriteDouble(p62, p63.Y)
+            p61:WriteDouble(p62, p63.Z)
+            return p62
+        end,
+        ["ReadBit"] = function(_, p64)
+            local v65 = p64.CurrentIndex
+            local v66 = tonumber(v65) or 1
+            local v67 = p64.CurrentBitIndex
+            local v68 = tonumber(v67) or 0
+            local v69 = v68 + 1
+            local v70 = p64.Data[v66]
+            local v71 = tonumber(v70) or 0
+            local v72 = 7 - v68
+            local v73 = bit32.rshift(v71, v72)
+            local v74 = bit32.band(v73, 1)
+            if v69 >= 8 then
+                p64.CurrentIndex = v66 + 1
+                p64.CurrentBitIndex = 0
+            else
+                p64.CurrentBitIndex = v69
+            end
+            return v74 == 1
+        end,
+        ["ReadByte"] = function(p75, p76)
+            if not p76 or type(p76) ~= "table" then
+                error("Buffer must be of type table.")
+                return 0
+            end
+            if not p76.CurrentIndex then
+                p76.CurrentIndex = 1
+            end
+            if p75:Remaining(p76) == 0 then
+                return 0
+            end
+            local v77 = p76.CurrentIndex
+            local v78 = tonumber(v77) or 1
+            local v79 = p76.CurrentBitIndex
+            if (tonumber(v79) or 0) == 0 then
+                p76.CurrentIndex = v78 + 1
+                return p76.Data[v78]
+            end
+            local v80 = 0
+            for v81 = 1, 8 do
+                local v82 = v81 - 1
+                local v83 = p75:ReadBit(p76) and 1 or 0
+                local v84 = bit32.lshift(v83, v82)
+                v80 = bit32.bor(v80, v84)
+            end
+            return v80
+        end,
+        ["ReadBool"] = function(p85, p86)
+            return p85:ReadByte(p86) == 1
+        end,
+        ["ReadInt"] = function(p87, p88)
+            local v89 = 0
+            for _ = 1, 4 do
+                local v90 = p87:ReadByte(p88)
+                local v91 = bit32.lshift(v89, 8)
+                v89 = bit32.bor(v91, v90)
+            end
+            return v89
+        end,
+        ["ReadShort"] = function(p92, p93)
+            local v94 = p92:ReadByte(p93)
+            local v95 = bit32.lshift(0, 8)
+            local v96 = bit32.bor(v95, v94)
+            local v97 = p92:ReadByte(p93)
+            local v98 = bit32.lshift(v96, 8)
+            return bit32.bor(v98, v97)
+        end,
+        ["ReadString"] = function(p99, p100)
+            local v101 = ""
+            while true do
+                local v102 = p99:ReadByte(p100)
+                if v102 == 0 or not v102 then
+                    break
+                end
+                local v103 = {}
+                for _ = 1, v102 do
+                    local v104 = p99:ReadByte(p100)
+                    if v104 and v104 > 0 then
+                        v103[#v103 + 1] = v104
+                    end
+                end
+                local v105 = unpack
+                v101 = v101 .. string.char(v105(v103))
+            end
+            return v101
+        end,
+        ["ReadDouble"] = function(p106, p107)
+            local v108 = p106:ReadByte(p107)
+            local v109 = p106:ReadByte(p107)
+            local v110 = p106:ReadByte(p107)
+            local v111 = p106:ReadByte(p107)
+            local v112 = p106:ReadByte(p107)
+            local v113 = p106:ReadByte(p107)
+            local v114 = p106:ReadByte(p107)
+            local v115 = p106:ReadByte(p107)
+            local v116 = ("%*%*%*%*%*%*%*%*"):format(string.char(v108), string.char(v109), string.char(v110), string.char(v111), string.char(v112), string.char(v113), string.char(v114), (string.char(v115)))
+            return string.unpack("d", v116)
+        end,
+        ["ReadVector2"] = function(p117, p118)
+            local v119 = p117:ReadDouble(p118) or 0
+            local v120 = p117:ReadDouble(p118) or 0
+            return Vector2.new(v119, v120)
+        end,
+        ["ReadVector3"] = function(p121, p122)
+            local v123 = p121:ReadDouble(p122) or 0
+            local v124 = p121:ReadDouble(p122) or 0
+            local v125 = p121:ReadDouble(p122) or 0
+            return Vector3.new(v123, v124, v125)
+        end,
+        ["Remaining"] = function(_, p126)
+            if not p126 or type(p126) ~= "table" then
+                error("Buffer must be of type table.")
+                return nil
+            end
+            local v127 = #(p126.Data or {})
+            local v128 = p126.CurrentIndex
+            return v127 - ((tonumber(v128) or 1) - 1)
+        end,
+        ["HasNext"] = function(p129, p130)
+            return p129:Remaining(p130) > 0
+        end,
+        ["Serialize"] = function(_, p131)
+            local v132 = #p131.Data
+            local v133 = buffer.create(v132)
+            for v134, v135 in ipairs(p131.Data) do
+                local v136 = v134 - 1
+                buffer.writeu8(v133, v136, v135)
+            end
+            return v133
+        end,
+        ["Deserialize"] = function(p136, p137)
+            -- upvalues: (copy) p136
+            local v138 = buffer.len(p137)
+            local v139 = p136.new(v138)
+            for v140 = 1, v138 do
+                p136:WriteByte(v139, (buffer.readu8(p137, v140 - 1)))
+            end
+            p136:Flip(v139)
+            return v139
+        end,
+        ["Flip"] = function(_, p143)
+            p143.CurrentBitIndex = 0
+            p143.CurrentIndex = 1
+        end,
+        ["Fill"] = function(p144, p145)
+            local v146 = p145.CurrentBitIndex
+            local v147 = tonumber(v146) or 0
+            if v147 == 0 then
+                p144:WriteByte(255)
+            else
+                for _ = 0, 7 - v147 do
+                    p144:WriteBit(p145, true)
+                end
+            end
+        end
+    }
+
+    local structs = aftermath.packet_manipulation.structs
+    local binutil = aftermath.packet_manipulation.binutil
+
+    local serializers = {
+        ["gunfire"] = function(buf)
+            buf = binutil:Deserialize(buf)
+            local serialized = {}
+            local counter = 0
+            for _, thing in structs.gunfire do
+                counter += 1
+                serialized[counter] = {
+                    data_type = thing[1],
+                    data = binutil["Read"..thing[1]](
+                        binutil,
+                        buf
+                    )
+                }
+            end
+            local dataleft = serialized[counter].data
+            for _ = 1, dataleft do
+                counter += 1
+                serialized[counter] = {
+                    data_type = "Byte",
+                    data = binutil:ReadByte(buf)
+                }
+                counter += 1
+                serialized[counter] = {
+                    data_type = "Int",
+                    data = binutil:ReadInt(buf)
+                }
+            end
+            return serialized
+        end,
+        ["gunhit"] = function(buf)
+            buf = binutil:Deserialize(buf)
+            local serialized = {}
+            local counter = 0
+            for _, thing in structs.gunhit do
+                counter += 1
+                serialized[counter] = {
+                    data_type = thing[1],
+                    data = binutil["Read"..thing[1]](
+                        binutil,
+                        buf
+                    ),
+                    size = thing[2]
+                }
+            end
+            return serialized
+        end,
+        ["gunmelee"] = function(buf)
+            buf = binutil:Deserialize(buf)
+            local serialized = {}
+            local counter = 0
+            for _, thing in structs.gunmelee do
+                counter += 1
+                serialized[counter] = {
+                    data_type = thing[1],
+                    data = binutil["Read"..thing[1]](
+                        binutil,
+                        buf
+                    ),
+                    size = thing[2]
+                }
+            end
+            return serialized
+        end
+    }
+
+    function aftermath.packet_manipulation.serialize(buf, struct)
+        if typeof(buf) ~= "buffer" then
+            return --print('grr...')
+        end
+
+        return serializers[struct](buf)
+    end
+
+    function aftermath.packet_manipulation.encode(serialized)
+        if typeof(serialized) ~= "table" then
+            return --print('grr...')
+        end
+
+        local encoded = binutil.new()
+        for _, data in serialized do
+            binutil["Write"..data.data_type](
+                binutil,
+                encoded,
+                data.data,
+                data.size
+            )
+        end
+
+        return binutil:Serialize(encoded)
+    end
+end)();
+
+
+local bullet_raycastparams = RaycastParams.new()
+bullet_raycastparams.IgnoreWater = true
+bullet_raycastparams.FilterDescendantsInstances = {
+    Camera,
+    workspace:WaitForChild("IgnoreList"),
+}
+bullet_raycastparams.CollisionGroup = "BulletGroup"
+bullet_raycastparams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function is_visible(position, target_part)
+    if not (target_part and position) then return false end
+    local castresults = _Raycast(workspace, position, target_part.CFrame.Position - position, bullet_raycastparams)
+    return castresults
+end
+
+local function is_position_visible(pos_from, pos_to)
+    if not (pos_to and pos_from) then return false end
+    local castresults = _Raycast(workspace, pos_from, pos_to - pos_from, bullet_raycastparams)
+    return castresults
+end
+
+local function get_simulation_pos(origin_pos, target_pos, target_part, simtable, check1, check2)
+    local final, maxmag = nil, math.huge;
+    for _, vector in simtable do
+        local modified = target_pos + vector
+        local distance = (origin_pos - modified).Magnitude
+        local posvisible = is_position_visible(origin_pos, modified)
+        --local fromvisible = is_visible(modified, target_part)
+        if 
+        (
+            (not check1 or (not posvisible or (
+                posvisible.Instance == target_part or
+                posvisible.Instance.Parent == target_part.Parent
+            )))
+            and
+            (not check2 or (not fromvisible or (
+                fromvisible.Instance == target_part or
+                fromvisible.Instance.Parent == target_part.Parent
+            )))
+        ) and distance <= maxmag then
+            final = modified
+            maxmag = distance
+        end
+    end
+    return final
+end
+
+local function get_current_gun(plr)
+    if not plr then return "Fists" end
+    local currentobj = _FindFirstChild(plr, "CurrentSelectedObject") and plr.CurrentSelectedObject.Value
+    local gunname = currentobj and currentobj.Value
+    return gunname and gunname.Name or "Fists"
+end
+
+--niggers
+for _,  gc in getgc(true) do
+    if type(gc) == 'table' then
+        local gpfwc = rawget(gc,  'GetPlayerFromWorldCharacter')
+        if gpfwc and type(gpfwc) == 'function' then
+            local list = getupvalues(gpfwc)[1]
+            if list and type(list) == 'table' then
+                aftermath.entitylist = list
+                break
+            end
+        end
+    end
+end
+local function get_current_gun(plr)
+    local c = plr and plr:FindFirstChild("CurrentSelectedObject")
+    c = c and c.Value
+    c = c and c.Value
+    return c and c.Name or "Fists"
+end
+
+local function predict(origin, pos, vel, speed, drop)
+    local dist = (origin - pos).Magnitude
+    local t = dist / speed
+    local p = pos + vel * t
+    t = t + (p - pos).Magnitude / speed
+    return p + Vector3.yAxis * (drop * t * t)
+end
+local function PredictPosition(LocalPos, TargetPos, TargetVelocity, BulletSpeed, BulletGravity)
+    local TimeToHit = (LocalPos - TargetPos).Magnitude / BulletSpeed
+
+    if flags.InstantBullet then
+        return TargetPos + Vector3.yAxis * (BulletGravity * TimeToHit ^ 2)
+    end
+
+    local Predicted = TargetPos + (TargetVelocity * TimeToHit)
+
+    TimeToHit = (LocalPos - Predicted).Magnitude / BulletSpeed
+
+    return Predicted + Vector3.yAxis * (BulletGravity * TimeToHit ^ 2)
+end
+for _, gc in getgc(true) do
+    if type(gc) == 'table' then
+        local gpfwc = rawget(gc, 'GetPlayerFromWorldCharacter')
+        if gpfwc and type(gpfwc) == 'function' then
+            local upvs = getupvalues(gpfwc)
+            local GetCharacters = upvs[2].GetCharacters
+            entitylist = getupvalues(GetCharacters)[1]
+            break
+        end
+    end
+end
+
+local function get_closest_target(fov_size, aimpart, team_check)
+    local ermm_part, plr_instance, collider, head_collider
+    local maximum_distance = fov_size
+    local mousepos = UserInputService:GetMouseLocation()
+    for userid, v in entitylist do
+        local player = v.Player
+        if not (player and player ~= LocalPlayer) then continue end
+
+        local root = v.RootPart
+        local worldmodel = v.WorldModel
+        local character = v.Character
+
+        if not (root and worldmodel and character) then continue end
+        if type(player) == "table" then
+            player = {
+                Name = character.Name .. " (bot)",
+                DisplayName = character.Name .. " (bot)"
+            }
+        end
+
+        local part = worldmodel:FindFirstChild(aimpart)
+        if not (part) then continue end
+        local position, onscreen = _WorldToViewportPoint(Camera, part.Position)
+        local distance = (Vector2.new(position.X, position.Y) - mousepos).Magnitude
+
+        if onscreen and distance <= maximum_distance then
+            plr_instance = player
+            ermm_part = part
+            collider = root
+            head_collider = character:FindFirstChild("ServerColliderHead")
+            maximum_distance = distance
+        end
+    end
+    
+    return ermm_part, plr_instance, collider, head_collider
+end
+
+local function predict_target(origin, position, velocity, projectile_speed, projectile_drop)
+    local distance = (origin - position).Magnitude
+    local time_to_hit = (distance / projectile_speed)
+    local predicted_position = position + (velocity * time_to_hit)
+    local delta = (predicted_position - position).Magnitude
+    time_to_hit = time_to_hit + (delta / projectile_speed)
+    return predicted_position + Vector3.yAxis * (projectile_drop * time_to_hit ^ 2)
+end
+
+local function full_prediction(target_position, target_collider)
+    if not (target_position) then return end
+
+    local currentgun = get_current_gun(LocalPlayer)
+    local gun = _FindFirstChild(aftermath.gundata, currentgun)
+    local stats = gun and _FindFirstChild(gun, "Stats")
+    local bullet_settings = stats and _FindFirstChild(stats, "BulletSettings")
+    if bullet_settings then
+        local bullet_speed = _FindFirstChild(bullet_settings, "BulletSpeed")
+        local bullet_drop = _FindFirstChild(bullet_settings, "BulletGravity")
+        local proj_speed = bullet_speed and bullet_speed.Value or aftermath.sv_config.sv_default_bullet_speed.Value or 1500
+        local proj_drop = bullet_drop and bullet_drop.Value and aftermath.sv_config.sv_default_bullet_gravity.Value or 0
+        local campos = Camera.CFrame.Position
+        local predicted = predict_target(
+            campos,
+            target_position,
+            target_collider and target_collider.AssemblyLinearVelocity or Vector3.zero,
+            proj_speed, proj_drop
+        )
+        return predicted
+    end
+    return target_position
+end
+
+do
+    local aimbot_enabled, aimbot_part, aimbot_mode, aimbot_active_button = false, "Head", "Silent", Enum.UserInputType["MouseButton2"]
+    local aimbot_team_check = false
+    local aimbot_bind_enabled = false
+    local fov_show, fov_color, fov_outline, fov_size = false, Color3.new(1,1,1), false, 100
+    local aimbot_no_spread, aimbot_no_recoil = false, false
+    local target_part, target_player, target_collider, target_head_collider
+    local simulation_pos, simulation_target_part
+
+    do
+        
+        local silent = AimbotSection:Toggle({
+            Name = "Silent Aim",
+            Flag = "aimbot",
+            Default = false,
+            Callback = function(first)
+                aimbot_enabled = first
+            end
+        })
+
+        
+        local Dropdown = AimbotSection:Dropdown({
+            Name = "Mode",
+            Flag = "aimbot_mode",
+            Default = "Silent",
+            Items = {"Aimbot", "Silent"},
+            MaxSize = 100,
+            Callback = function(Value)
+                aimbot_mode = Value
+            end
+        })
+    end
+
+    do
+        
+        
+        local ShowFov = FOV:Toggle({
+            Name = "Show FOV",
+            Flag = "fov_show",
+            Default = false,
+            Callback = function(Value)
+                fov_show = Value
+            end
+        })
+        
+        ShowFov:Colorpicker({
+            Name = "Color",
+            Flag = "fov_color",
+            Default = Color3.new(1, 1, 1),
+            Callback = function(Value)
+                fov_color = Value
+            end
+        })
+        
+        local Outline = FOV:Toggle({
+            Name = "Outline FOV",
+            Flag = "fov_outline",
+            Default = false,
+            Callback = function(Value)
+                fov_outline = Value
+            end
+        })
+        
+        local SliderSize = FOV:Slider({
+            Name = "FOV Size",
+            Flag = "fov_size",
+            Min = 10,
+            Default = 100,
+            Max = 1000,
+            Suffix = "X",
+            Decimals = 0,
+            Callback = function(Value)
+                fov_size = Value
+            end
+        })
+    end
+
+    -- Your existing rendering code...
+    local CircleOutline = cheat.utility.new_drawing("Circle", {
+        Thickness = 3,
+        Color = Color3.new(),
+        ZIndex = 1
+    })
+    local CircleInline = cheat.utility.new_drawing("Circle", {
+        Transparency = 1,
+        Thickness = 1,
+        ZIndex = 2
+    })
+
+    cheat.utility.new_renderstepped(LPH_NO_VIRTUALIZE(function()
+        CircleInline.Position = UserInputService:GetMouseLocation()
+        CircleInline.Radius = fov_size
+        CircleInline.Color = fov_color
+        CircleInline.Visible = fov_show
+        CircleOutline.Position = UserInputService:GetMouseLocation()
+        CircleOutline.Radius = fov_size
+        CircleOutline.Visible = (fov_show and fov_outline)
+    end))
+    
+    cheat.utility.new_heartbeat(LPH_NO_VIRTUALIZE(function()
+    if aimbot_enabled then
+        target_part, target_player, target_collider, target_head_collider = get_closest_target(fov_size, aimbot_part, aimbot_team_check)
+
+        if target_part and target_collider then
+            local new_pos = full_prediction(target_part.Position, target_collider)
+            
+            if UserInputService:IsMouseButtonPressed(aimbot_active_button) then
+                if aimbot_mode == "camera" then
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, new_pos)
+                elseif aimbot_mode == "Aimbot" then
+                    local pos = _WorldToViewportPoint(Camera, new_pos)
+                    local mpos = UserInputService:GetMouseLocation()
+                    local diff = _Vector2new(pos.X - mpos.X, pos.Y - mpos.Y) 
+                    mousemoverel(diff.X, diff.Y)
+                end
+            end
+        end
+    end
+end))
+
+    local binutil = require(game:GetService("ReplicatedStorage").GunSystem.GunLibrary.BinaryUtil)
+    local old
+    
+    old = hookfunction(buffer.create, newcclosure(function(size, ...)
+        if size ~= 300 then
+            return old(size, ...)
+        end
+        local args = {...}
+        local Route = args[1]
+        local Payload = args[2]
+        if not debug.traceback():find("GunController") then
+            return old(size, ...)
+        end
+
+        local stack = debug.getstack(3, 1)
+        if type(stack) ~= "table" then
+            return old(size, ...)
+        end
+        if type(stack[3]) == "table" and stack[3].Resimulation ~= nil then
+            return old(size, ...)
+        end
+
+        local cam = workspace.CurrentCamera
+        local pitch, yaw, roll = cam.CFrame:ToEulerAnglesYXZ()
+
+        local pred
+        local part, player, collider = get_closest_target(fov_size, aimbot_part, aimbot_team_check)
+
+        if part then
+            pred = full_prediction(part.Position, collider)
+        end
+
+        local ld
+
+        if pred and aimbot_mode == "Silent" then
+            ld = CFrame.lookAt(cam.CFrame.Position, pred)
+        else
+            ld = cam.CFrame.LookVector
+        end
+
+        local spread = Vector3.zero
+
+        --if aimbot_no_spread then
+            local rng = Random.new(stack[47] + 1)
+            spread = Vector3.new(
+                rng:NextNumber() - rng:NextNumber(),
+                rng:NextNumber() - rng:NextNumber(),
+                rng:NextNumber() - rng:NextNumber()
+            ) / stack[22]
+        --end
+
+        if typeof(ld) == "Vector3" then
+            ld = (ld - spread).Unit
+        elseif typeof(ld) == "CFrame" then
+            ld = (ld.LookVector - spread).Unit
+        end
+
+        local cf = CFrame.lookAt(Vector3.zero, ld)
+        local pitch2, yaw2, roll2 = cf:ToEulerAnglesYXZ()
+        local dir = cf.LookVector
+        local r00, r01, r02, r10, r11, r12, r20, r21, r22 = cf:GetComponents()
+
+        stack[31] = cf
+        stack[32] = dir
+        stack[33] = dir
+        stack[35] = pitch2
+        stack[36] = yaw2
+        stack[37] = CFrame.new(0, 0, 0, r00, r01, r02, r10, r11, r12, r20, r21, r22)
+        stack[38] = CFrame.new(0, 0, 0, r00, r01, r02, r10, r11, r12, r20, r21, r22)
+        stack[43] = CFrame.new(0, 0, 0, r00, r01, r02, r10, r11, r12, r20, r21, r22)
+        stack[44] = dir
+        stack[45] = dir
+
+        return old(size, ...)
+    end))
+end
+
+do
+    local  bhop, bhop_power = false, 20, false, 25
+
+
+    Movements:Toggle({
+        Name = 'Bhop',
+        Flag = 'bhop',
+        Default = false,
+        Callback = function(first)
+            bhop = first
+            game:GetService("ReplicatedStorage").CustomCharacterConfigs.Configuration.Client.cl_auto_jump.Value = first
+        end
+    })
+
+    -- Your specific code to modify 'updateCharData' functions
+    for _, v in getgc() do
+        if type(v) == "function" then
+            local info = debug.getinfo(v)
+            if info.name == "updateCharData" then
+                local old; old = hookfunction(v, newcclosure(function(p254, p255, p256)
+                    if p254 == 'Jump' then return end
+                    return old(p254, p255, p256)
+                end))
+            end
+        end
+    end
+end
+
+
+Library:Notification("Millenium.cc Loaded", 5)
